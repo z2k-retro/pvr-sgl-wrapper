@@ -277,3 +277,14 @@ char * CALL_CONV PVROSDbgDevBuffer (int k)
 	STUB();
 	return (char *) 0;
 }
+
+/*
+ * sgl_register_api - exported by the original thin SGL.DLL, whose source
+ * (new_thin.c) is not in Imagination's release. Judging by the strings in
+ * that DLL, PVROS used it to hand SGL.DLL the function table of the SGLMIDx
+ * library it had chosen for the installed board. Here SGL is all one DLL, so
+ * there is nothing to register; it exists so the export table matches.
+ */
+void CALL_CONV sgl_register_api(void)
+{
+}
