@@ -23,6 +23,7 @@
 #include <windows.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "sgl_defs.h"
 #include "sgl.h"
@@ -51,6 +52,64 @@ static uint32_t *board_tex;
 static volatile PVR_STATUS board_status;
 static uint32_t *frame_rgb;
 
+/* Render helpers: the tiles of a frame are shared out between this thread
+   and up to MAX_HELPERS others (one fewer than the CPU's threads). */
+#define MAX_HELPERS 15
+static pcxr_job_t *render_job;
+static int     n_helpers;
+static HANDLE  helper_go[MAX_HELPERS], helper_done[MAX_HELPERS];
+
+static DWORD WINAPI helper_main(LPVOID arg)
+{
+	int i = (int) (INT_PTR) arg;
+	for (;;) {
+		WaitForSingleObject(helper_go[i], INFINITE);
+		pcxr_render_tiles(render_job, frame_rgb, 0, 0);
+		SetEvent(helper_done[i]);
+	}
+	return 0;
+}
+
+static void helpers_init(void)
+{
+	SYSTEM_INFO si;
+	int i, want;
+	char env[16];
+
+	render_job = pcxr_job_create();
+	GetSystemInfo(&si);
+	want = (int) si.dwNumberOfProcessors - 1;
+	if (GetEnvironmentVariableA("PVR_RENDER_THREADS", env, sizeof env))
+		want = atoi(env) - 1;
+	if (want > MAX_HELPERS)
+		want = MAX_HELPERS;
+	for (i = 0; i < want; i++) {
+		helper_go[i] = CreateEventA(NULL, FALSE, FALSE, NULL);
+		helper_done[i] = CreateEventA(NULL, FALSE, FALSE, NULL);
+		if (!CreateThread(NULL, 0, helper_main, (LPVOID) (INT_PTR) i, 0, NULL))
+			break;
+		n_helpers++;
+	}
+}
+
+/* Draw a frame on all helpers; falls back to one thread if none started. */
+static void render_frame(const pcxr_frame_t *f, pcxr_result_t *r)
+{
+	int i;
+
+	if (!render_job) {
+		pcxr_render(f, frame_rgb, r);
+		return;
+	}
+	if (pcxr_prepare(render_job, f, r) <= 0)
+		return;
+	for (i = 0; i < n_helpers; i++)
+		SetEvent(helper_go[i]);
+	pcxr_render_tiles(render_job, frame_rgb, 0, 0);
+	if (n_helpers)
+		WaitForMultipleObjects(n_helpers, helper_done, TRUE, INFINITE);
+}
+
 static void vlog(const char *fmt, ...)
 {
 	char buf[512];
@@ -75,6 +134,7 @@ static int board_init(void)
 	if (!board_regs || !board_tex || !frame_rgb)
 		return 0;
 	board_regs[PCX_REVISION] = PCX2_REVISION;
+	helpers_init();
 	board_status = PVR_STATUS_EOR;
 	return 1;
 }
@@ -172,7 +232,9 @@ static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 
 	/* 3. In place of the chip: draw the frame and write it out. */
 	memset(frame_rgb, 0, PCXR_MAX_W * PCXR_MAX_H * 4);
-	pcxr_render(&f, frame_rgb, &r);
+	memset(&r, 0, sizeof r);
+	r.max_x = r.max_y = -1;
+	render_frame(&f, &r);
 	write_frame(&r, f.xclip, regs[PCX_SOFADDR], regs[PCX_LSTRIDE], regs[PCX_PACKMODE]);
 	if (r.error)
 		vlog("vsgl: render stopped on a malformed tile list\n");
