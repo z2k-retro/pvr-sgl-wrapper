@@ -1,9 +1,9 @@
 /*
- * smoke.c - load SGL.DLL by ordinal, the way the original sgl.lib linked
- * games to it, check the names Unreal and the MiniGLs look up at run time, and make the
- * first calls a game would make. With the stub
- * backend the screen device cannot be created yet; the point is that the
- * library loads, initialises and reaches the backend without crashing.
+ * smoke.c - load SGL.DLL, check its ordinals against the shipped 4.1.1.5
+ * DLL, check the names Unreal and the MiniGLs look up at run time, and make
+ * the first calls a game would make. With the stub backend the screen device
+ * cannot be created yet; the point is that the library loads, initialises
+ * and reaches the backend without crashing.
  *
  * SPDX-License-Identifier: MIT
  */
@@ -40,9 +40,15 @@ int main(void)
 	int dev;
 
 	if (!h) { printf("LoadLibrary failed: %lu\n", GetLastError()); return 1; }
-	versions = (PFN_VERSIONS) GetProcAddress(h, MAKEINTRESOURCEA(1));
-	create = (PFN_CREATE_SCREEN) GetProcAddress(h, MAKEINTRESOURCEA(2));
-	if (!versions || !create) { printf("missing ordinal 1 or 2\n"); return 1; }
+	versions = (PFN_VERSIONS) GetProcAddress(h, "sgl_get_versions");
+	create = (PFN_CREATE_SCREEN) GetProcAddress(h, "sgl_create_screen_device");
+	if (!versions || !create) { printf("missing sgl_get_versions or sgl_create_screen_device\n"); return 1; }
+	/* Ordinals as in the shipped SGL.DLL 4.1.1.5. */
+	if ((void *) GetProcAddress(h, MAKEINTRESOURCEA(58)) != (void *) versions ||
+	    (void *) GetProcAddress(h, MAKEINTRESOURCEA(31)) != (void *) create)
+		printf("ordinals differ from SGL.DLL 4.1.1.5\n");
+	else
+		printf("ordinals match SGL.DLL 4.1.1.5\n");
 
 	{
 		int i, missing = 0;
