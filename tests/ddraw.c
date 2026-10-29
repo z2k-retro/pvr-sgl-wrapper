@@ -4,7 +4,7 @@
  * and a few frames of a spinning textured quad over a Gouraud one. After
  * the last frame it copies the screen to a BMP.
  *
- * Usage: ddraw.exe [frames] [out.bmp]
+ * Usage: ddraw.exe [frames] [out.bmp] [16|24]   (24 asks for a 24/32-bit mode)
  *
  * SPDX-License-Identifier: MIT
  */
@@ -60,6 +60,7 @@ int main(int argc, char **argv)
 {
 	int frames = argc > 1 ? atoi(argv[1]) : 30;
 	const char *out = argc > 2 ? argv[2] : "ddraw.bmp";
+	int depth = argc > 3 ? atoi(argv[3]) : 16;
 	WNDCLASSA wc;
 	HWND hwnd;
 	SGLCONTEXT ctx;
@@ -79,7 +80,8 @@ int main(int argc, char **argv)
 	                     0, 0, 640, 480, NULL, NULL, wc.hInstance, NULL);
 
 	sgl_use_ddraw_mode(hwnd, NULL);
-	dev = sgl_create_screen_device(0, 640, 480, sgl_device_16bit, TRUE);
+	dev = sgl_create_screen_device(0, 640, 480,
+	                               depth == 24 ? sgl_device_24bit : sgl_device_16bit, TRUE);
 	printf("sgl_create_screen_device: %d\n", dev);
 	if (dev < 0)
 		return 1;
