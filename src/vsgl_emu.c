@@ -187,7 +187,8 @@ static void write_frame(const pcxr_result_t *r, uint32_t xclip, uint32_t sofaddr
 	}
 }
 
-/* Scroll Lock saves the frame just drawn, exactly as the chip wrote it to
+/* F12 or Scroll Lock (or the virtual-key code in PVR_SHOT_KEY) saves the
+   frame just drawn, exactly as the chip wrote it to
    the screen surface (after PACKMODE packing and dithering), as
    pvrshot_NNN.bmp next to sgl.dll. Screen captures made by Windows tools
    can miss a full-screen DirectDraw game; this cannot. */
@@ -295,12 +296,18 @@ static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 		vlog("vsgl: render stopped on a malformed tile list\n");
 	{
 		/* PVR_SHOT_FRAME=n also saves frame n, for scripted comparisons. */
-		static int key_was_down, frame_no, shot_frame = -2;
-		int down = (GetAsyncKeyState(VK_SCROLL) & 0x8000) != 0;
+		static int key_was_down, frame_no, shot_frame = -2, shot_key;
+		int down;
 		if (shot_frame == -2) {
 			char env[16];
 			shot_frame = GetEnvironmentVariableA("PVR_SHOT_FRAME", env, sizeof env) ? atoi(env) : -1;
+			shot_key = GetEnvironmentVariableA("PVR_SHOT_KEY", env, sizeof env) ?
+			           (int) strtol(env, NULL, 0) : 0;
 		}
+		if (shot_key)
+			down = (GetAsyncKeyState(shot_key) & 0x8000) != 0;
+		else
+			down = ((GetAsyncKeyState(VK_F12) | GetAsyncKeyState(VK_SCROLL)) & 0x8000) != 0;
 		if ((down && !key_was_down) || frame_no++ == shot_frame)
 			save_shot(&r, regs[PCX_SOFADDR], regs[PCX_LSTRIDE], regs[PCX_PACKMODE]);
 		key_was_down = down;
