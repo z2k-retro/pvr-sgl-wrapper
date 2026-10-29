@@ -1078,7 +1078,11 @@ HDISPLAY CALL_CONV PVROSOpenDisplayDevice( void *pLogDevice,
 		pPDB->fCorrectMode = TRUE;
 		pPDB->fSingleStep = FALSE;
 
-		pPDB->fStrictLocks = (BOOL) HWRdValFileUInt ("StrictLocks", FALSE);
+		/* Wrapper: default to strict locks. Without them the back buffer was
+		   unlocked before the render and the chip wrote to an address Windows 95
+		   happened to keep valid; on DirectDraw today the pointer is only valid
+		   while the surface is locked. */
+		pPDB->fStrictLocks = (BOOL) HWRdValFileUInt ("StrictLocks", TRUE);
 
 		if (FrameBufferMode == FRAME_BUFFER_ACTIVE)
 		{
@@ -1617,7 +1621,11 @@ PVROSERR CALL_CONV PVROSEndOfRenderCallbackAuto (void *pData, HDISPLAY hDisplay)
 
 	DDOK (IDirectDrawSurface2_Unlock (pPDB->pBackBuffer, NULL));
 
+#if !defined(__GNUC__)
+	/* Wrapper: left out. The render is finished by the time this runs, and
+	   on current Windows Sleep(3) can cost a whole 15.6 ms timer tick. */
 	Sleep(3);
+#endif
 
 	return (PVROS_GROOVY);	
 }	
