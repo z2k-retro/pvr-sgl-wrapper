@@ -74,6 +74,12 @@ BOOL WINAPI vsgl_crt_init(HINSTANCE h, DWORD reason, LPVOID reserved);
 /* system.c's DllMain is renamed so src/vsgl_emu.c can run it alongside
    SGL's own (win32/w32dll.c, renamed SGL_DllMain by the build). */
 #define DllMain PVROS_DllMain
+/* PVROS's messages also go to the wrapper's log file (src/diag.c). */
+#undef OutputDebugString
+#define OutputDebugString pvr_log_string
+void WINAPI pvr_log_string(const char *s);
 #endif
+
+void pvr_log(const char *fmt, ...);
 
 #endif

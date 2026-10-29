@@ -4,7 +4,7 @@
  * Uses SGL's address mode (sgl_use_address_mode), where the application
  * says where each frame goes, so no window or DirectDraw is needed. The
  * scene: a background colour, a Gouraud-shaded triangle, and a translucent
- * quad crossing it in front.
+ * quad crossing it in front (drawn with sgltri_quads).
  *
  * The PCX2 shades smoothly in intensity only (one colour per polygon, see
  * the reference, Appendix B), so the triangle's vertices differ in
@@ -84,7 +84,7 @@ int main(int argc, char **argv)
 	SGLCONTEXT ctx;
 	SGLVERTEX v[7];
 	int tri[1][3] = { { 0, 1, 2 } };
-	int quad[2][3] = { { 3, 4, 5 }, { 3, 5, 6 } };
+	int quad[1][4] = { { 3, 4, 5, 6 } };
 	int dev, wait, earliest, latest;
 
 	memset(frame, 0x55, sizeof frame); /* untouched pixels stay this grey */
@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 	v[4] = vtx(600, 200, 0.9f, 0xffffffff);
 	v[5] = vtx(600, 300, 0.9f, 0xffffffff);
 	v[6] = vtx(200, 300, 0.9f, 0xffffffff);
-	sgltri_triangles(&ctx, 2, quad, v);
+	sgltri_quads(&ctx, 1, quad, v); /* as Unreal draws its surfaces */
 
 	sgltri_render(&ctx);
 	for (wait = 0; wait < 200 && status && !(*status & 1); wait++)

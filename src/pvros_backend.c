@@ -19,6 +19,9 @@
 #include "sgl_defs.h"
 #include "sgl.h"
 #include "pvrosapi.h"
+#include "vsgl.h"
+
+void diag_init(HINSTANCE dll);
 
 /* PVROS called into SGLMIDx through a jump table (win32/pvrosif.c); here
    they are one DLL, so there is nothing to load. */
@@ -84,6 +87,7 @@ static int setup_device(HINSTANCE hinst)
 	/* The texture interface first: SGL_LogicalDev checks the heap against it. */
 	SglSetGlobal(SGL_TextureIF, pTexIF);
 	SglSetGlobal(SGL_LogicalDev, hLogDev);
+	pvr_log("pvr-sgl-wrapper: emulated PCX2 ready\n");
 	return TRUE;
 }
 
@@ -111,12 +115,13 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved)
 	switch (reason) {
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(h);
+		diag_init(h);
 		if (!PVROS_DllMain(h, reason, reserved)) {
-			OutputDebugStringA("pvr-sgl-wrapper: PVROS start-up failed\n");
+			pvr_log("pvr-sgl-wrapper: PVROS start-up failed\n");
 			return FALSE;
 		}
 		if (!SGL_DllMain(h, reason, reserved)) {
-			OutputDebugStringA("pvr-sgl-wrapper: SGL start-up failed\n");
+			pvr_log("pvr-sgl-wrapper: SGL start-up failed\n");
 			PVROS_DllMain(h, DLL_PROCESS_DETACH, reserved);
 			return FALSE;
 		}
@@ -131,8 +136,10 @@ BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved)
 		   DirectDraw may already be unloaded; leave the clean-up to Windows. */
 		if (!reserved)
 			teardown_device();
-		SGL_DllMain(h, reason, reserved);
+		/* PVROS first: it frees its buffers from the heap that SGL's
+		   detach destroys (MemFini). */
 		PVROS_DllMain(h, reason, reserved);
+		SGL_DllMain(h, reason, reserved);
 		return TRUE;
 	default:
 		return TRUE;

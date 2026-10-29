@@ -46,7 +46,6 @@
 #define REG_BYTES       (0x400 * 4)
 #define TEXMEM_BYTES    (4u << 20)
 
-static int      vsgl_verbose = 1;
 static uint32_t *board_regs;
 static uint32_t *board_tex;
 static volatile PVR_STATUS board_status;
@@ -110,18 +109,7 @@ static void render_frame(const pcxr_frame_t *f, pcxr_result_t *r)
 		WaitForMultipleObjects(n_helpers, helper_done, TRUE, INFINITE);
 }
 
-static void vlog(const char *fmt, ...)
-{
-	char buf[512];
-	va_list ap;
-
-	if (!vsgl_verbose)
-		return;
-	va_start(ap, fmt);
-	vsnprintf(buf, sizeof buf, fmt, ap);
-	va_end(ap);
-	OutputDebugStringA(buf);
-}
+#define vlog pvr_log
 
 static int board_init(void)
 {

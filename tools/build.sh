@@ -35,13 +35,13 @@ PVROS="win32/system win32/display win32/brdcfg win32/brdsetup win32/texif
  texapi tmalloc profile callback"
 # Assembler files with no C equivalent in the source, assembled with JWasm.
 ASM="win32/texapiml"
-OURS="pvros_backend fpu vsgl_emu pcx2/vid_powervr_pcx_render"
+OURS="pvros_backend fpu vsgl_emu diag pcx2/vid_powervr_pcx_render"
 
 # Defines from pcmake.mak (release build). The original compiler was Intel's
 # icl with -Zp4 (4-byte structure packing) and x87 floating point.
 CFLAGS="-D_BUILDING_SGL_=1 -DLIBNAME=\"SGLMID5\" -DWIN32=1 -DPCX2=1
  -DWIN32_LEAN_AND_MEAN -DFULL_ON -DICL=1 -DBUILD=\"Release\" -DDEBUG=0
- -DPVR_NO_ASM=1 -O2 -fpack-struct=4 -fgnu89-inline -fcommon -w
+ -DPVR_NO_ASM=1 -O2 -g -fpack-struct=4 -fgnu89-inline -fcommon -w
  -I$SRC -I$SRC/win32 -I$SRC/pcx -I$SRC/pcmake -I$ROOT/src"
 
 ok=0; bad=0; : > "$OUT/summary.txt"
@@ -88,7 +88,7 @@ echo "compiled $ok, failed $bad" | tee -a "$OUT/summary.txt"
 # (new_thin.c) is not in the release, and one DLL is simpler anyway. The
 # exports, with the original ordinals, come from src/sgl.def.
 if $CC -shared -static-libgcc -o "$OUT/sgl.dll" "$OUT"/obj/*.o "$ROOT/src/sgl.def" \
-     -luser32 -lkernel32 -lversion -lgdi32 -ladvapi32 -lddraw -lwinmm -Wl,--out-implib,"$OUT/libsgl.a" \
+     -luser32 -lkernel32 -lversion -lgdi32 -ladvapi32 -lddraw -lwinmm -Wl,--out-implib,"$OUT/libsgl.a" -Wl,-Map,"$OUT/sgl.map" \
      > "$OUT/log/link.log" 2>&1; then
   echo "linked $OUT/sgl.dll" | tee -a "$OUT/summary.txt"
 else
