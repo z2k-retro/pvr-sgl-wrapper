@@ -365,6 +365,10 @@
 
 	#define Int3 DebugBreak
 
+#elif defined (__GNUC__)
+
+	#define Int3 DebugBreak
+
 #else
 
 	#define Int3 / ## /
@@ -2115,6 +2119,19 @@ void CALL_CONV PVROSAssert(char *szAssertText, char *szFileName, sgl_int32 nLine
  * Performance tools
  */
 
+#if defined(__GNUC__)
+/* The originals read the time stamp counter (and reset it with WRMSR, which
+   only worked because Windows 95 let ring 3 do it). Use the OS counter. */
+sgl_uint32 CALL_CONV PVROSQueryPerformanceCounter(sgl_largeint* Val)
+{
+	return QueryPerformanceCounter((LARGE_INTEGER *) Val);
+}
+
+sgl_uint32 CALL_CONV PVROSQueryPerformanceFrequency(sgl_largeint* Val)
+{
+	return QueryPerformanceFrequency((LARGE_INTEGER *) Val);
+}
+#else
 sgl_uint32 CALL_CONV PVROSQueryPerformanceCounter(sgl_largeint* Val)
 {
 	/* Read the Time Stamp Counter and adjust it's value down a bit */
@@ -2148,6 +2165,8 @@ sgl_uint32 CALL_CONV PVROSQueryPerformanceFrequency(sgl_largeint* Val)
 
 	return( TRUE );
 }
+
+#endif
 
 /**********************************************************************/
 

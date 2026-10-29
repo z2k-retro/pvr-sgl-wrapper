@@ -1290,6 +1290,9 @@ PVROSERR CreateNewPCXBuffer(HANDLE		hVxD,
 		return PVROS_DODGY;
 	}
 
+	/* Added for the wrapper: the original fell off the end here, returning
+	   whatever the last call left in EAX (PVROS_GROOVY with MSVC). */
+	return PVROS_GROOVY;
 }
 
 static int CountBuffers (DEVICE_TYPE DeviceType)

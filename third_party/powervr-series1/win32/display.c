@@ -187,8 +187,9 @@ PVROSERR CALL_CONV PVROSEndOfRenderCallbackAuto (void *pData, HDISPLAY hDisplay)
 #define ISDDOK(x)	((x)==DD_OK)
 #define DDOK(x)		(x)
 
-#define DumpDisplayModeTable /##/
-#define DumpDisplayModeDataBlock /##/
+/* The original "/##/" trick (pasting a // comment) only worked in MSVC. */
+#define DumpDisplayModeTable(x)
+#define DumpDisplayModeDataBlock(x)
 
 #else
 
