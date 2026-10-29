@@ -17,6 +17,7 @@
 static HANDLE log_file = INVALID_HANDLE_VALUE;
 static CRITICAL_SECTION log_lock;
 static int log_ready, crashes_logged;
+static char dll_dir[MAX_PATH];
 
 static void log_raw(const char *s)
 {
@@ -114,15 +115,25 @@ static LONG CALLBACK on_exception(PEXCEPTION_POINTERS ep)
 	return EXCEPTION_CONTINUE_SEARCH;
 }
 
+/* The folder sgl.dll is in, with a trailing backslash ("" if unknown). */
+const char *pvr_dll_dir(void)
+{
+	return dll_dir;
+}
+
 void diag_init(HINSTANCE dll)
 {
 	char path[MAX_PATH], env[8], *slash;
 	SYSTEMTIME t;
 
+	if (GetModuleFileNameA(dll, dll_dir, sizeof dll_dir) && (slash = strrchr(dll_dir, '\\')))
+		slash[1] = 0;
 	if (GetEnvironmentVariableA("PVR_LOG", env, sizeof env) && env[0] == '0')
 		return;
 	InitializeCriticalSection(&log_lock);
 	if (GetModuleFileNameA(dll, path, sizeof path) && (slash = strrchr(path, '\\'))) {
+		slash[1] = 0;
+		strcpy(dll_dir, path);
 		strcpy(slash + 1, "pvrsgl.log");
 		log_file = CreateFileA(path, GENERIC_WRITE, FILE_SHARE_READ, NULL, CREATE_ALWAYS,
 		                       FILE_ATTRIBUTE_NORMAL, NULL);

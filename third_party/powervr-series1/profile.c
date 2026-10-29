@@ -560,7 +560,11 @@ sgl_bool GetManStringFromRegistry (char *pszBuffer)
 	}
 	else
 	{
+		/* Wrapper: not logged. With no PowerVR driver installed the key never
+		   exists, and this runs for every setting SGL looks up. */
+#if !defined(__GNUC__)
 		PVROSPrintf("Couldn't access key SOFTWARE\\PowerVR\\StartUp\n");
+#endif
 	}
 
 	return (fRet);

@@ -187,6 +187,73 @@ static void write_frame(const pcxr_result_t *r, uint32_t xclip, uint32_t sofaddr
 	}
 }
 
+/* Scroll Lock saves the frame just drawn, exactly as the chip wrote it to
+   the screen surface (after PACKMODE packing and dithering), as
+   pvrshot_NNN.bmp next to sgl.dll. Screen captures made by Windows tools
+   can miss a full-screen DirectDraw game; this cannot. */
+const char *pvr_dll_dir(void);
+
+static void save_shot(const pcxr_result_t *r, uint32_t sofaddr, uint32_t stride, uint32_t packmode)
+{
+	static int n;
+	char path[MAX_PATH + 32];
+	int w = r->max_x + 1, h = r->max_y + 1, x, y, row = 0;
+	int bpp = ((packmode & 3) == 0) ? 4 : ((packmode & 3) == 1) ? 3 : 2;
+	BITMAPFILEHEADER fh;
+	BITMAPINFOHEADER ih;
+	unsigned char *line;
+	FILE *f;
+
+	if (!sofaddr || w <= 0 || h <= 0)
+		return;
+	row = (w * 3 + 3) & ~3;
+	line = calloc(1, row);
+	_snprintf(path, sizeof path, "%spvrshot_%03d.bmp", pvr_dll_dir(), n++);
+	f = fopen(path, "wb");
+	if (!f || !line) {
+		free(line);
+		if (f)
+			fclose(f);
+		return;
+	}
+	memset(&fh, 0, sizeof fh);
+	memset(&ih, 0, sizeof ih);
+	fh.bfType = 0x4d42;
+	fh.bfOffBits = sizeof fh + sizeof ih;
+	fh.bfSize = fh.bfOffBits + row * h;
+	ih.biSize = sizeof ih;
+	ih.biWidth = w;
+	ih.biHeight = -h;
+	ih.biPlanes = 1;
+	ih.biBitCount = 24;
+	fwrite(&fh, sizeof fh, 1, f);
+	fwrite(&ih, sizeof ih, 1, f);
+	for (y = 0; y < h; y++) {
+		const uint8_t *src = (const uint8_t *) sofaddr + (size_t) y * stride;
+		for (x = 0; x < w; x++) {
+			const uint8_t *p = src + x * bpp;
+			unsigned r8, g8, b8;
+			if (bpp >= 3) {
+				b8 = p[0]; g8 = p[1]; r8 = p[2];
+			} else {
+				unsigned v = p[0] | (p[1] << 8);
+				if ((packmode & 3) == 2) {
+					r8 = (v >> 11) << 3; g8 = ((v >> 5) & 0x3f) << 2; b8 = (v & 0x1f) << 3;
+				} else {
+					r8 = ((v >> 10) & 0x1f) << 3; g8 = ((v >> 5) & 0x1f) << 3; b8 = (v & 0x1f) << 3;
+				}
+			}
+			line[x * 3] = (unsigned char) b8;
+			line[x * 3 + 1] = (unsigned char) g8;
+			line[x * 3 + 2] = (unsigned char) r8;
+		}
+		fwrite(line, row, 1, f);
+	}
+	fclose(f);
+	free(line);
+	vlog("vsgl: saved %s (%dx%d, PACKMODE 0x%02x)\n", path, w, h, packmode);
+}
+
 static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 {
 	pcxr_frame_t f;
@@ -226,6 +293,18 @@ static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 	write_frame(&r, f.xclip, regs[PCX_SOFADDR], regs[PCX_LSTRIDE], regs[PCX_PACKMODE]);
 	if (r.error)
 		vlog("vsgl: render stopped on a malformed tile list\n");
+	{
+		/* PVR_SHOT_FRAME=n also saves frame n, for scripted comparisons. */
+		static int key_was_down, frame_no, shot_frame = -2;
+		int down = (GetAsyncKeyState(VK_SCROLL) & 0x8000) != 0;
+		if (shot_frame == -2) {
+			char env[16];
+			shot_frame = GetEnvironmentVariableA("PVR_SHOT_FRAME", env, sizeof env) ? atoi(env) : -1;
+		}
+		if ((down && !key_was_down) || frame_no++ == shot_frame)
+			save_shot(&r, regs[PCX_SOFADDR], regs[PCX_LSTRIDE], regs[PCX_PACKMODE]);
+		key_was_down = down;
+	}
 
 	/* 4. End of render, as the VxD's interrupt handler reported it, and
 	      the buffer goes back to the pool (BUFFER_LIST.bInUse, offset 0,

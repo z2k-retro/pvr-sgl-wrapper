@@ -17,7 +17,7 @@ The whole path works under Wine:
 - **Address mode** (`tests/tri.c`): the application gives SGL a memory buffer. The test draws a Gouraud-shaded triangle with a translucent quad in front.
 - **DirectDraw mode** (`tests/ddraw.c`): this is the path games use. The test opens a window, calls `sgl_use_ddraw_mode`, and runs a full-screen 640×480×16 double-buffered device with page flips. It uploads a mip-mapped texture and draws a spinning textured, bilinear-filtered quad over a Gouraud one.
 
-It has not run a game yet. Unreal and the Quake MiniGLs are the first targets (see below).
+Unreal runs (see *Trying it on Windows*). The Quake MiniGLs are next.
 
 Rendering uses every CPU thread. Set `PVR_RENDER_THREADS` to override the count.
 
@@ -28,6 +28,12 @@ The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightne
 1. Copy `sgl.dll` next to the game's executable. For Unreal, that is the `System` folder.
 2. Select the game's PowerVR renderer. For Unreal, that is *PowerVR SGL support*, or `GameRenderDevice=SGLDrv.SGLRenderDevice` in `Unreal.ini`.
 3. If the game cannot set its 640×480 16-bit mode, or the screen stays black, add dgVoodoo2's `ddraw.dll` to the same folder, as RReady users do.
+
+**Unreal (1998) runs.** On Windows 11 with dgVoodoo2's `ddraw.dll`, it plays at 1024×768 at full speed on a Ryzen 7735HS mini-PC (16 threads, integrated graphics, which only display the frames). That run covered the intro, Vortex Rikers and Nyleve's Falls with saving.
+
+**Screenshots.** Press Scroll Lock in a game to save the frame just drawn as `pvrshot_NNN.bmp` next to `sgl.dll`. The capture is exactly what the emulated chip wrote, after packing and dithering, so it is the frame to compare with 86Box or a real card. Windows capture tools may miss a full-screen DirectDraw game. Setting `PVR_SHOT_FRAME=n` saves frame *n* without a key press.
+
+**Log.** `pvrsgl.log` next to `sgl.dll` records the driver's messages, and for any crash the module, offset, registers and return addresses. `tools/addr2sym.py` (or `i686-w64-mingw32-addr2line -e build/sgl.dll`) turns `sgl.dll` offsets into function and line. Set `PVR_LOG=0` to turn the log off.
 
 `ddraw.exe` from the tests is a quick check that doesn't need a game. It should show a turning checkerboard for a few seconds, then exit and write `ddraw.bmp`.
 
@@ -91,7 +97,8 @@ Each change is small and commented in place:
 6. `dtri.h`: `PVR_NO_ASM` keeps Imagination's C versions of the routines the PCX2 build took from `dtexml.asm`/`dtriml.asm`. The assembler versions also build with JWasm, and they draw `tests/tri.c` identically.
 7. `win32/display.c`, `win32/system.c`: replaced MSVC's comment-pasting macro (`/##/`). `PVROSQueryPerformance*` use the OS counter instead of reading and resetting the TSC.
 8. `win32/brdsetup.c`: `CreateNewPCXBuffer` now returns `PVROS_GROOVY`. The original fell off the end.
-9. `win32/display.c`: `StrictLocks` defaults to on, because today's DirectDraw surface pointers are valid only while locked. The `Sleep(3)` after each frame is left out.
+9. `profile.c`: the "Couldn't access key SOFTWARE\\PowerVR\\StartUp" message is not logged. Without an installed driver it fires for every setting lookup.
+10. `win32/display.c`: `StrictLocks` defaults to on, because today's DirectDraw surface pointers are valid only while locked. The `Sleep(3)` after each frame is left out.
 
 ## Next steps
 
