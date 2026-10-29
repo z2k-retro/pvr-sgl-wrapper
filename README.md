@@ -1,67 +1,103 @@
 # pvr-sgl-wrapper
 
-A replacement `SGL.DLL` for games written for the PowerVR PCX1/PCX2 (Matrox m3D, VideoLogic Apocalypse 3D/3Dx and similar). The goal is to run native PowerVR SGL games on modern Windows with output that matches a real PCX2, and later at higher resolutions.
+A replacement `SGL.DLL` for games written for the PowerVR PCX1/PCX2 (Matrox m3D, VideoLogic Apocalypse 3D/3Dx and similar). It runs native PowerVR SGL games on modern Windows, with no PowerVR card, and draws what a real PCX2 would.
 
-The approach is to reuse rather than reimplement:
+It works by rebuilding the original driver rather than imitating it:
 
-- **Front end:** Imagination's own SGL library from the [PowerVR Series 1 source release](https://github.com/powervr-graphics/PowerVR-Series1) (MIT), built as-is with small portability fixes. Games get the real SGL API behaviour, including the geometry and tiling work the original driver did on the host CPU.
-- **Back end:** in the original driver, SGL reached the card and the screen through `PVROS.DLL`. The wrapper replaces that layer (`src/pvros_backend.c`). Instead of writing to a card, it will hand each frame's parameter data to the hardware-validated PCX2 renderer from the [86Box PCX2 emulation](https://github.com/z2k-retro/86Box) (`vid_powervr_pcx_render.c`), running natively.
+- **SGL itself** is Imagination's own library, from the [PowerVR Series 1 source release](https://github.com/powervr-graphics/PowerVR-Series1) (MIT), built with small portability fixes. Games get the real API behaviour, including the geometry, sorting and tiling the driver did on the CPU.
+- **PVROS**, the driver's OS layer (DirectDraw display, board set-up, texture memory), is also Imagination's source.
+- **The VxD** (`VSGL.VXD`), the one piece that touched the card, is not in the release. `src/vsgl_emu.c` stands in for it and emulates one PCX2. Board memory is ordinary memory. A render request runs the PCX2 renderer from the [86Box emulation](https://github.com/z2k-retro/86Box), which matches a real m3D to within a few pixels per frame in every game compared. The pixels go straight into the DirectDraw surface.
+
+Everything is one 32-bit `sgl.dll` with the same export table as the last `SGL.DLL` Matrox shipped (4.1.1.5).
 
 ## Status
 
-Early scaffold.
+The whole path works under Wine:
 
-- All 68 C files of the original PCX2/Win32 SGL library (`SGLMID5.DLL`) compile with MinGW, with the 69th (`win32/pvrosif.c`, the jump table into `PVROS.DLL`) replaced by the backend. They link into a single `sgl.dll` that has the same export table as the last `SGL.DLL` Matrox shipped (4.1.1.5): the same 142 names at the same ordinals.
-- Under Wine, the smoke test (`tests/smoke.c`) loads the DLL by ordinal and calls `sgl_get_versions`, which reports `4.1.2.4sjf`. It then calls `sgl_create_screen_device`, which gets as far as the backend and fails cleanly (`-244`), because every backend function is still a stub.
+- **Address mode** (`tests/tri.c`): the application gives SGL a memory buffer. The test draws a Gouraud-shaded triangle with a translucent quad in front.
+- **DirectDraw mode** (`tests/ddraw.c`): this is the path games use. The test opens a window, calls `sgl_use_ddraw_mode`, and runs a full-screen 640×480×16 double-buffered device with page flips. It uploads a mip-mapped texture and draws a spinning textured, bilinear-filtered quad over a Gouraud one.
+
+It has not run a game yet. Unreal and the Quake MiniGLs are the first targets (see below).
+
+Rendering uses every CPU thread. Set `PVR_RENDER_THREADS` to override the count.
+
+The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightness interpolated (reference, Appendix B). A triangle with red, green and blue vertices therefore comes out a single hue, as it would on the card.
+
+## Trying it on Windows
+
+1. Copy `sgl.dll` next to the game's executable. For Unreal, that is the `System` folder.
+2. Select the game's PowerVR renderer. For Unreal, that is *PowerVR SGL support*, or `GameRenderDevice=SGLDrv.SGLRenderDevice` in `Unreal.ini`.
+3. If the game cannot set its 640×480 16-bit mode, or the screen stays black, add dgVoodoo2's `ddraw.dll` to the same folder, as RReady users do.
+
+`ddraw.exe` from the tests is a quick check that doesn't need a game. It should show a turning checkerboard for a few seconds, then exit and write `ddraw.bmp`.
 
 ## Building
 
-The build needs the i686 MinGW cross compiler (`gcc-mingw-w64-i686` on Debian/Ubuntu).
+The build needs the i686 MinGW cross compiler (`gcc-mingw-w64-i686` on Debian/Ubuntu), plus `git` and `make` for JWasm. The build fetches and builds JWasm the first time; it assembles the one assembler file the source has no C version of.
 
 ```sh
-python3 tools/gen_def.py   # regenerate src/sgl.def (already committed)
-tools/build.sh             # -> build/sgl.dll, per-file results in build/summary.txt
+tools/build.sh             # -> build/sgl.dll; per-file results in build/summary.txt
+i686-w64-mingw32-gcc -O2 -Ithird_party/powervr-series1 tests/ddraw.c -o build/ddraw.exe -Lbuild -lsgl -lgdi32
+i686-w64-mingw32-gcc -O2 -Ithird_party/powervr-series1 tests/tri.c -o build/tri.exe -Lbuild -lsgl
 i686-w64-mingw32-gcc -O2 tests/smoke.c -o build/smoke.exe
-cd build && wine smoke.exe
 ```
 
-## Layout
+Under Wine, the DirectDraw test needs a display with 3D support. On a headless machine, use 32-bit Mesa (`libgl1-mesa-dri:i386`) and `xvfb-run -s '-screen 0 1024x768x24 +extension GLX'`. Also configure a Wine virtual desktop, because Xvfb offers only one display mode.
+
+## How it fits together
+
+```
+game ─► SGL (Imagination source) ─► PVROS (Imagination source) ─► vsgl_emu.c ─► PCX2 renderer
+                                         │                         (the VxD)       (86Box)
+                                         └─ DirectDraw: window, mode, flips, locks the back buffer
+```
 
 | Path | What it is |
 | --- | --- |
-| `third_party/powervr-series1/` | Imagination's `Source/` tree. The first commit is unmodified, and later changes are listed below. |
-| `src/pvros_backend.c` | Stand-in for `PVROS.DLL`: the 43 functions SGL calls for devices, display, texture heap and rendering. All stubs for now. |
-| `src/fpu.c` | C versions of `SetupFPU`/`RestoreFPU` from `win32/fast.asm` (x87 single precision, truncating rounding, as the original). |
-| `src/sgl.def` | Export table generated by `tools/gen_def.py` from `src/sgl_exports_4115.txt`, the export list of the shipped 4.1.1.5 `SGL.DLL`. |
-| `tools/build.sh` | Cross-compiles the library one file at a time and links `sgl.dll`. |
-| `tests/smoke.c` | Loads `sgl.dll` and makes the first calls a game makes. |
+| `third_party/powervr-series1/` | Imagination's `Source/` tree. The first commit is unmodified; the changes since are listed below. |
+| `src/vsgl_emu.c` | The VxD: the 4.x drivers' `DeviceIoControl` interface (codes from the PCX2 reference, Appendix F) for one emulated PCX2. It handles board enumeration and info, scatter-gather and page allocations, and `SCHEDULE_RENDER`. It also stands in for `pci.asm`. |
+| `src/vsgl.h` | The VxD's control codes and `SHAREDBLOCK`. It replaces the missing `vsgl.h` and points `system.c`'s `CreateFile`/`DeviceIoControl` at `vsgl_emu.c`. |
+| `src/pvros_backend.c` | What the missing thin `SGL.DLL` did: `DllMain` for both halves; finding the board; creating the texture heap and logical device; `SglSetGlobal`. |
+| `src/pcx2/` | The PCX2 renderer and the m3D's ROM tables, from the 86Box emulation (`pcx-perf` 16ef5f7b4), used under MIT with the author's permission. |
+| `src/fpu.c` | `SetupFPU`/`RestoreFPU` from `fast.asm` (x87 single precision, truncating rounding). |
+| `src/sgl.def`, `src/sgl_exports_4115.txt` | The export table, copied from the shipped 4.1.1.5 `SGL.DLL` by `tools/gen_def.py`. |
+| `tools/build.sh` | Cross-compiles one file at a time, assembles `texapiml.asm` with JWasm, and links `sgl.dll`. |
+| `tests/` | `smoke.c` (exports and start-up), `tri.c` (address mode to a BMP) and `ddraw.c` (full-screen DirectDraw, texture, screen capture). |
+
+### Per frame
+
+1. SGL builds the ISP planes and region lists in a scatter-gather buffer, which here is one contiguous allocation. It builds TSP parameters in a page-reserved buffer and a 32-register shadow.
+2. PVROS's pre-render callback locks the DirectDraw back buffer. Its address becomes `SOFADDR`.
+3. `SCHEDULE_RENDER` does what the VxD did. It copies the TSP parameters to texture-memory offset 0 and takes the register shadow. Then, in place of the chip, it renders the tiles on all threads and writes the pixels the chip would write, packed to `PACKMODE`, into the surface. It reports end of render through `LDEVICE.RenderStatus` and the status word.
+4. PVROS's end-of-render callback unlocks the surface and flips.
 
 ## What callers expect
 
-- **The shipped driver.** The Matrox m3D driver 4.1.1.5.002 has the same layered design as the source. A thin `SGL.DLL` exports 142 functions, by name, at alphabetical ordinals. `PVROS.DLL` finds the board and loads `SGLMID5.DLL`, which exports only `GetSGL_IF`. The thin layer's `sgl_register_api` (its source is not in the release) appears to be how the chosen `SGLMIDx` was connected; the wrapper keeps it as a no-op. Imagination's `ordinals.h` numbers the functions differently and was not what this release used, so the wrapper copies the shipped table instead.
-- **Unreal** (1998). `SGLDrv.dll` loads `SGL.DLL` itself and looks up 29 functions by name. These are all from the `sgltri_*` path (PowerSGL Direct) plus device and texture setup, with nothing from the scene-graph API.
-- **PowerVR MiniGLs for Quake and Quake II** (Dec. 1997). `opengl32.dll`/`pvrgl.dll` also load `SGL.DLL` at run time and look up the same set plus `sgl_get_free_texture_mem_info` and `sgl_set_texture_extended`. They are standalone OpenGL front ends on top of SGL, so once SGL works they should work unchanged.
+- **The shipped driver.** The Matrox m3D driver 4.1.1.5.002 has the layered design the source describes. A thin `SGL.DLL` exports 142 functions by name, at alphabetical ordinals (not the `ordinals.h` numbering). `PVROS.DLL` finds the board and loads `SGLMID5.DLL`, which exports only `GetSGL_IF`. `sgl_register_api` belongs to the thin layer and is a no-op here.
+- **Unreal** (1998). `SGLDrv.dll` loads `SGL.DLL` itself and looks up 29 functions by name. These are all from the `sgltri_*` path (PowerSGL Direct) plus device and texture set-up.
+- **PowerVR MiniGLs for Quake and Quake II** (Dec. 1997). `opengl32.dll`/`pvrgl.dll` load `SGL.DLL` at run time and look up the same set, plus `sgl_get_free_texture_mem_info` and `sgl_set_texture_extended`.
 
-`tests/smoke.c` checks all 31 names.
+`tests/smoke.c` checks all 31 names and the 4.1.1.5 ordinals.
 
 ## Changes to Imagination's source
 
-These are kept small and commented in place:
+Each change is small and commented in place:
 
-1. `metrics.c`: `SglTimeNow` uses `__rdtsc()` under GCC instead of MSVC inline assembly.
-2. `dsprite.c`: forward declarations for two static functions that MSVC let the code call before defining them.
-3. `pcx/hwregs.c`: its private copies of the bilinear-filtering flags are renamed (`bHw...`). The originals were declared `static` after `hwinterf.h` declared globals of the same name, which MSVC accepted. The globals themselves live in `sgllite.c`.
-4. `win32/hwdevice.c`: a cast used as an lvalue (an old MSVC extension).
+1. `metrics.c`: `SglTimeNow` uses `__rdtsc()` under GCC.
+2. `dsprite.c`: forward declarations for two static functions that are called before they are defined.
+3. `pcx/hwregs.c`: its private copies of the bilinear flags are renamed `bHw...`. The originals were `static` after `hwinterf.h` declared globals of the same name.
+4. `win32/hwdevice.c`: removed a cast used as an lvalue.
 5. `win32/sglwin.c`: `sgl_use_ddraw_mode` takes `void *hWnd`, matching `sgl.h`.
-6. `dtri.h`: `PVR_NO_ASM` keeps the C versions of the routines that the PCX2 build normally took from the MASM files (`dtexml.asm`, `dtriml.asm`). The C versions are Imagination's own.
+6. `dtri.h`: `PVR_NO_ASM` keeps Imagination's C versions of the routines the PCX2 build took from `dtexml.asm`/`dtriml.asm`. The assembler versions also build with JWasm, and they draw `tests/tri.c` identically.
+7. `win32/display.c`, `win32/system.c`: replaced MSVC's comment-pasting macro (`/##/`). `PVROSQueryPerformance*` use the OS counter instead of reading and resetting the TSC.
+8. `win32/brdsetup.c`: `CreateNewPCXBuffer` now returns `PVROS_GROOVY`. The original fell off the end.
+9. `win32/display.c`: `StrictLocks` defaults to on, because today's DirectDraw surface pointers are valid only while locked. The `Sleep(3)` after each frame is left out.
 
 ## Next steps
 
-1. **Devices and texture heap.** The PVROS source is in the release too (`win32/brdsetup.c`, `heap.c`, `texif.c`, `system.c`). Reuse what doesn't touch PCI or the VxD, and back "card memory" with an ordinary allocation.
-2. **Display.** Implement `PVROSOpenDisplayDevice`, `PVROSEnumDisplayModes` and `PVROSSelectDisplayMode` on DirectDraw, as the original `win32/display.c` does, and rely on dgVoodoo2's `ddraw.dll` on modern Windows (as RReady does) rather than writing a DirectDraw layer.
-3. **Rendering.** `PVROSScheduleRender` gets the frame's ISP/TSP parameters and region data, which is the same data the emulated card reads in 86Box. Run the PCX2 renderer on it and present the result.
-4. **Check against games.** Unreal and the Quake MiniGLs first (see above). Compare frames with 86Box captures.
-5. **Later:** the D3D/PowerVR Direct path (`pvrd.c`), a GPU backend for higher resolutions, and DOS SGL titles.
+1. **Games.** Unreal and GLQuake/Quake II through the MiniGLs on Windows 11. Compare frames with 86Box captures.
+2. **Settings.** The driver reads per-game settings from the registry (`HKLM\SOFTWARE\PowerVR\...`). Shipping defaults like the real driver's may matter for some games.
+3. **Later:** the Direct3D/PowerVR Direct path (`pvrd.c`, `PVRMID5.DLL`); a GPU or higher-resolution backend; DOS SGL titles through DOSBox.
 
 ## License
 
