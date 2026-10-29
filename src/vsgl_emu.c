@@ -227,7 +227,10 @@ static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 	if (r.error)
 		vlog("vsgl: render stopped on a malformed tile list\n");
 
-	/* 4. End of render, as the VxD's interrupt handler reported it. */
+	/* 4. End of render, as the VxD's interrupt handler reported it, and
+	      the buffer goes back to the pool (BUFFER_LIST.bInUse, offset 0,
+	      which only the VxD cleared). */
+	bl->bInUse = FALSE;
 	board_status = PVR_STATUS_EOR;
 	ld->RenderStatus = PVR_STATUS_EOR;
 	if (ld->RendersPending)
@@ -355,6 +358,8 @@ BOOL vsgl_ioctl(HANDLE h, DWORD code, void *in, DWORD in_size,
 		   reads back in the order SGL wrote it. */
 		DMASCATTERBUFFER *sb = out;
 		DWORD bytes = (IN32(0) + 0x3fff) & ~0x3fffu;
+		static int n_created;
+		vlog("vsgl: parameter buffer %d, %lu KB\n", ++n_created, bytes >> 10);
 		void *p = VirtualAlloc(NULL, bytes, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 		if (!p || out_size < sizeof *sb)
 			return FALSE;
