@@ -1,27 +1,27 @@
 /*
- * pvros_backend.c - stand-in for PVROS.DLL.
+ * pvros_backend.c - the parts of the original driver that are not in
+ * Imagination's release: the DLL entry point and the start-up work of the
+ * thin SGL.DLL.
  *
- * In the original driver, SGLMID5.DLL reached the hardware and the display
- * through PVROS.DLL, loaded at run time and called through a jump table
- * (win32/pvrosif.c). The wrapper links SGLMID5's code directly against this
- * file instead. Every function here is a stub for now: it logs that it was
- * called and returns a neutral value. They get real bodies as the backend
- * (display, texture heap, render scheduling into the PCX2 core) is written.
+ * The original driver was three pieces. A thin SGL.DLL (new_thin.c, not
+ * released) loaded PVROS.DLL, which found the board and loaded the matching
+ * SGLMIDx.DLL; SGL.DLL then forwarded every call into it. The wrapper builds
+ * SGLMID5 and PVROS from source into one DLL, so the jump tables between
+ * them are not needed, and this file does the start-up the thin layer did:
+ * find the (emulated) board, create the texture heap and logical device, and
+ * hand them to SGL through SglSetGlobal.
  *
  * SPDX-License-Identifier: MIT
  */
 
 #include <windows.h>
-#include <stdarg.h>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "sgl_defs.h"
 #include "sgl.h"
 #include "pvrosapi.h"
 
-#define STUB() (OutputDebugStringA("pvros stub: "), OutputDebugStringA(__func__), OutputDebugStringA("\n"))
-
+/* PVROS called into SGLMIDx through a jump table (win32/pvrosif.c); here
+   they are one DLL, so there is nothing to load. */
 int CALL_CONV PVROSAPIInit(void)
 {
 	return TRUE;
@@ -31,260 +31,110 @@ void CALL_CONV PVROSAPIExit(void)
 {
 }
 
-sgl_uint32 CALL_CONV PVROSGetInterface (HLDEVICE hLDevice, PVR_Interface Spec, PVRHANDLE *ppIf)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSReleaseInterface (HLDEVICE hLDevice)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSGetTexInterface (HDEVICE hDeviceID, PVRHANDLE *ppIf)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-void CALL_CONV PVROSPrintf (char* pszFormat,...)
-{
-	char buf[1024];
-	va_list ap;
-	va_start(ap, pszFormat);
-	vsnprintf(buf, sizeof buf, pszFormat, ap);
-	va_end(ap);
-	OutputDebugStringA(buf);
-}
-
-void CALL_CONV PVROSAssert (char *szAssertText,char *szFileName,sgl_int32 nLine,int * ask)
-{
-	STUB();
-}
-
-sgl_uint32 CALL_CONV PVROSQueryPerformanceCounter (sgl_largeint* Val)
-{
-	return QueryPerformanceCounter((LARGE_INTEGER *) Val);
-}
-
-sgl_uint32 CALL_CONV PVROSQueryPerformanceFrequency (sgl_largeint* Val)
-{
-	return QueryPerformanceFrequency((LARGE_INTEGER *) Val);
-}
-
-int CALL_CONV PVROSGetUsagePhysicalDevice (PciDeviceTable *pBoard)
-{
-	STUB();
-	return (int) 0;
-}
-
-HDEVICE CALL_CONV PVROSCreatePhysicalDevice (PciDeviceTable *pBoard)
-{
-	STUB();
-	return (HDEVICE) 0;
-}
-
-void CALL_CONV PVROSDestroyPhysicalDevice (HDEVICE hDeviceID)
-{
-	STUB();
-}
-
-PVRHANDLE CALL_CONV PVROSCreateTexHeap (HDEVICE hDeviceID)
-{
-	STUB();
-	return (PVRHANDLE) 0;
-}
-
-void CALL_CONV PVROSDestroyTexHeap (PVRHANDLE TexHeap)
-{
-	STUB();
-}
-
-HLDEVICE CALL_CONV PVROSCreateLogicalDevice (HDEVICE hDeviceID,PVRHANDLE TexHeap)
-{
-	STUB();
-	return (HLDEVICE) 0;
-}
-
-void CALL_CONV PVROSDestroyLogicalDevice (HLDEVICE Device)
-{
-	STUB();
-}
-
-HDISPLAY CALL_CONV PVROSOpenDisplayDevice (void *pLogDevice, DISPLAYID DisplayID,FRAME_BUFFER_MODE fbm)
-{
-	STUB();
-	return (HDISPLAY) 0;
-}
-
-PVROSERR CALL_CONV PVROSCloseDisplayDevice (void *pLogDevice, HDISPLAY hDisplay)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSEnumDisplayModes (HDISPLAY hDisplay,DisplayModeTable *DMT)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-PVROSERR CALL_CONV PVROSSelectDisplayMode (HDISPLAY hDisplay,HMODE hMode,sgl_uint32 nBuffers)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-PVROSERR CALL_CONV PVROSCallbackRegister (void *pLogDevice,CALLBACK_TYPE cType,PVROSCB fn,void *pContext)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-PVROSERR CALL_CONV PVROSCallback (void *pLogDevice,CALLBACK_TYPE cType,void *pCallbackData)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-void * CALL_CONV PVROSMalloc (sgl_uint32 X)
-{
-	return malloc(X);
-}
-
-void CALL_CONV PVROSFree (void * X)
-{
-	free(X);
-}
-
-PVROSERR CALL_CONV PVROSScheduleRender (HLDEVICE LogicalDevice)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSDetermineTexMemConfig (sgl_uint32 fSettings)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSEnumPCIDevices (PciDeviceTable *pPDT)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-sgl_uint32 CALL_CONV PVROSExtendTSPBuffer (HLDEVICE gHLogicalDev)
-{
-	STUB();
-	return (sgl_uint32) 0;
-}
-
-sgl_int32 CALL_CONV HWRdValFileInt (char * RegName,sgl_int32 DefaultVal)
-{
-	return DefaultVal;
-}
-
-sgl_uint32 CALL_CONV HWRdValFileUInt (char * RegName,sgl_uint32 DefaultVal)
-{
-	return DefaultVal;
-}
-
-float CALL_CONV HWRdValFileFloat (char * RegName,float DefaultVal)
-{
-	return DefaultVal;
-}
-
-sgl_bool CALL_CONV HWRdValFileString (char * RegName, char *pszBuffer,int pszBufferSize)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-sgl_bool CALL_CONV GetApplicationHintFloat (char *pszHint,float *pData)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-sgl_bool CALL_CONV GetApplicationHintInt (char *pszHint,sgl_int32 *pData)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-sgl_bool CALL_CONV GetApplicationHintString (char *pszHint,char *pszBuffer,int pszBufferSize)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-int CALL_CONV SglReadPrivateProfileInt (char *szSection,char *szEntry,int nDefault,char *szFilename)
-{
-	return nDefault;
-}
-
-sgl_bool CALL_CONV SglWritePrivateProfileInt (char *szSection,char *szEntry,int nValue,char *szFilename)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-sgl_bool CALL_CONV SglReadPrivateProfileString (char *szSection,char *szEntry,char *szDefault,char *szText,int nTextSize,char *szFilename)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-sgl_bool CALL_CONV SglWritePrivateProfileString (char *szSection,char *szEntry,char *szText,char *szFilename)
-{
-	STUB();
-	return (sgl_bool) 0;
-}
-
-float CALL_CONV SglReadPrivateProfileFloat (char *szSection, char *szEntry, float fDefault, char *szFilename)
-{
-	return fDefault;
-}
-
-void CALL_CONV PVROSSetDDrawWindowHandle (void *hWnd)
-{
-	STUB();
-}
-
-PVROSERR CALL_CONV GetDDraw2dCallbackInfo (HDISPLAY hDisplay,void *pCSP)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-PVROSERR CALL_CONV PVROSAssignVirtualBuffers (PVR_PARAM_BUFF *pPVRParamBuf, HLDEVICE HLogicalDev)
-{
-	STUB();
-	return (PVROSERR) 0;
-}
-
-void CALL_CONV PVROSFreeVirtualBuffers (HLDEVICE hLogDev)
-{
-	STUB();
-}
-
-char * CALL_CONV PVROSDbgDevBuffer (int k)
-{
-	STUB();
-	return (char *) 0;
-}
-
 /*
- * sgl_register_api - exported by the original thin SGL.DLL, whose source
- * (new_thin.c) is not in Imagination's release. Judging by the strings in
- * that DLL, PVROS used it to hand SGL.DLL the function table of the SGLMIDx
- * library it had chosen for the installed board. Here SGL is all one DLL, so
- * there is nothing to register; it exists so the export table matches.
+ * sgl_register_api - exported by the original thin SGL.DLL. Judging by the
+ * strings in that DLL, PVROS used it to hand SGL.DLL the function table of
+ * the SGLMIDx library it had chosen for the installed board. Here SGL is all
+ * one DLL, so there is nothing to register; it exists so the export table
+ * matches.
  */
 void CALL_CONV sgl_register_api(void)
 {
+}
+
+/* The start-up of the thin SGL.DLL, reconstructed from the interfaces it
+   had to use: SglSetGlobal's cases (rnglobal.c) say what SGL expects to be
+   given, and PVROS's functions how to get each one. */
+static HDEVICE   hPhysDev;
+static PVRHANDLE hTexHeap;
+static HLDEVICE  hLogDev;
+
+static int setup_device(HINSTANCE hinst)
+{
+	PciDeviceTable boards[4];
+	void *pTexIF = NULL;
+	sgl_uint32 n;
+
+	n = PVROSEnumPCIDevices(NULL);
+	if (n == 0 || n > 4) {
+		PVROSPrintf("pvr-sgl-wrapper: no board\n");
+		return FALSE;
+	}
+	PVROSEnumPCIDevices(boards);
+
+	hPhysDev = PVROSCreatePhysicalDevice(&boards[0]);
+	if (!hPhysDev) {
+		PVROSPrintf("pvr-sgl-wrapper: could not create the physical device\n");
+		return FALSE;
+	}
+	hTexHeap = PVROSCreateTexHeap(hPhysDev);
+	if (!hTexHeap || !PVROSGetTexInterface(hPhysDev, &pTexIF)) {
+		PVROSPrintf("pvr-sgl-wrapper: could not set up texture memory\n");
+		return FALSE;
+	}
+	hLogDev = PVROSCreateLogicalDevice(hPhysDev, hTexHeap);
+	if (!hLogDev) {
+		PVROSPrintf("pvr-sgl-wrapper: could not create the logical device\n");
+		return FALSE;
+	}
+
+	SglSetGlobal(SGL_DllHandle, hinst);
+	SglSetGlobal(SGL_DeviceID, (void *) boards[0].DeviceID);
+	SglSetGlobal(SGL_DeviceType, (void *) boards[0].DeviceType);
+	/* The texture interface first: SGL_LogicalDev checks the heap against it. */
+	SglSetGlobal(SGL_TextureIF, pTexIF);
+	SglSetGlobal(SGL_LogicalDev, hLogDev);
+	return TRUE;
+}
+
+static void teardown_device(void)
+{
+	if (hLogDev)
+		PVROSDestroyLogicalDevice(hLogDev);
+	if (hTexHeap)
+		PVROSDestroyTexHeap(hTexHeap);
+	if (hPhysDev)
+		PVROSDestroyPhysicalDevice(hPhysDev);
+	hLogDev = NULL;
+	hTexHeap = NULL;
+	hPhysDev = NULL;
+}
+
+/* The original PVROS.DLL and SGLMID5.DLL each had an entry point
+   (win32/system.c and win32/w32dll.c, renamed by the build). Run both,
+   PVROS first, then the thin layer's device set-up. */
+BOOL WINAPI PVROS_DllMain(HINSTANCE h, DWORD reason, LPVOID reserved);
+BOOL WINAPI SGL_DllMain(HINSTANCE h, DWORD reason, LPVOID reserved);
+
+BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved)
+{
+	switch (reason) {
+	case DLL_PROCESS_ATTACH:
+		DisableThreadLibraryCalls(h);
+		if (!PVROS_DllMain(h, reason, reserved)) {
+			OutputDebugStringA("pvr-sgl-wrapper: PVROS start-up failed\n");
+			return FALSE;
+		}
+		if (!SGL_DllMain(h, reason, reserved)) {
+			OutputDebugStringA("pvr-sgl-wrapper: SGL start-up failed\n");
+			PVROS_DllMain(h, DLL_PROCESS_DETACH, reserved);
+			return FALSE;
+		}
+		if (!setup_device(h)) {
+			SGL_DllMain(h, DLL_PROCESS_DETACH, reserved);
+			PVROS_DllMain(h, DLL_PROCESS_DETACH, reserved);
+			return FALSE;
+		}
+		return TRUE;
+	case DLL_PROCESS_DETACH:
+		/* At process exit (reserved != NULL) other threads are gone and
+		   DirectDraw may already be unloaded; leave the clean-up to Windows. */
+		if (!reserved)
+			teardown_device();
+		SGL_DllMain(h, reason, reserved);
+		PVROS_DllMain(h, reason, reserved);
+		return TRUE;
+	default:
+		return TRUE;
+	}
 }
