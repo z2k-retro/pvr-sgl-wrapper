@@ -137,3 +137,12 @@ EXPORTS
 	sgl_direct_create_texture @134
 	SglSetGlobal @135
 	SglInitialise @136
+; In sgl.h but not ordinals.h: exported by name only.
+	sgl_delete_all_textures
+	TexasWriteBMP
+	LoadSglBin
+	FreeSglBinTextures
+	sgltri_lines
+	sgltri_sprites
+	sgl_get_ini_string
+	sgl_get_ini_int

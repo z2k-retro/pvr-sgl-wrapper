@@ -11,7 +11,7 @@ The approach is to reuse rather than reimplement:
 
 Early scaffold.
 
-- All 68 C files of the original PCX2/Win32 SGL library (`SGLMID5.DLL`) compile with MinGW, with the 69th (`win32/pvrosif.c`, the jump table into `PVROS.DLL`) replaced by the backend. They link into a single `sgl.dll` that exports the 136 SGL functions at their original ordinals.
+- All 68 C files of the original PCX2/Win32 SGL library (`SGLMID5.DLL`) compile with MinGW, with the 69th (`win32/pvrosif.c`, the jump table into `PVROS.DLL`) replaced by the backend. They link into a single `sgl.dll` that exports the 136 SGL functions at their original ordinals, plus 8 later additions by name.
 - Under Wine, the smoke test (`tests/smoke.c`) loads the DLL by ordinal and calls `sgl_get_versions`, which reports `4.1.2.4sjf`. It then calls `sgl_create_screen_device`, which gets as far as the backend and fails cleanly (`-244`), because every backend function is still a stub.
 
 ## Building
@@ -36,6 +36,10 @@ cd build && wine smoke.exe
 | `tools/build.sh` | Cross-compiles the library one file at a time and links `sgl.dll`. |
 | `tests/smoke.c` | Loads `sgl.dll` and makes the first calls a game makes. |
 
+## Games checked
+
+**Unreal** (1998): `SGLDrv.dll` does not link `SGL.DLL` at load time. It calls `LoadLibrary("SGL.DLL")` and looks up 29 functions by name. These are all from the lightweight `sgltri_*` path (PowerSGL Direct); none are from the scene-graph API. Three of them (`sgltri_lines`, `sgl_get_ini_int`, `sgl_get_ini_string`) have no ordinal in `ordinals.h`, so the export table includes every function `sgl.h` declares, by name. `tests/smoke.c` checks all 29.
+
 ## Changes to Imagination's source
 
 These are kept small and commented in place:
@@ -52,7 +56,7 @@ These are kept small and commented in place:
 1. **Devices and texture heap.** The PVROS source is in the release too (`win32/brdsetup.c`, `heap.c`, `texif.c`, `system.c`). Reuse what doesn't touch PCI or the VxD, and back "card memory" with an ordinary allocation.
 2. **Display.** Implement `PVROSOpenDisplayDevice`, `PVROSEnumDisplayModes` and `PVROSSelectDisplayMode` on DirectDraw, as the original `win32/display.c` does, and rely on dgVoodoo2's `ddraw.dll` on modern Windows (as RReady does) rather than writing a DirectDraw layer.
 3. **Rendering.** `PVROSScheduleRender` gets the frame's ISP/TSP parameters and region data, which is the same data the emulated card reads in 86Box. Run the PCX2 renderer on it and present the result.
-4. **Check against games.** Confirm how games import `sgl.dll` (by ordinal through the original `sgl.lib`, or by name; both are exported). Compare frames with 86Box captures.
+4. **Check against games.** Unreal (see below) is the first. Compare frames with 86Box captures.
 5. **Later:** the D3D/PowerVR Direct path (`pvrd.c`), a GPU backend for higher resolutions, and DOS SGL titles.
 
 ## License
