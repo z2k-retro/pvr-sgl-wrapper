@@ -765,7 +765,7 @@ int	CALL_CONV HWDeleteDevice( int hDisplay )
 	{
 		PVROSCloseDisplayDevice( gHLogicalDev, (HDISPLAY) hDisplay );		
 
-		(void*) hDisplay = NULL;
+		hDisplay = 0;
 	}
 
 	return error;

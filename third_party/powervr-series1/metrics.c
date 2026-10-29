@@ -36,10 +36,16 @@ sgl_uint32 nTotalPolygonsInFrame, nTransPolygonsInFrame, nOpaquePolygonsInFrame;
  * Return:		unsigned int value being the current 32bit clock tick with ref
  *		        to the CPU Speed.
  *========================================================================================*/
+#if defined(__GNUC__)
+#include <x86intrin.h>
+#endif
 sgl_uint32  SglTimeNow(void)
 {
 	static sgl_uint32 Time;
 
+#if defined(__GNUC__)
+	Time = (sgl_uint32)(__rdtsc() >> 4);
+#else
 	__asm
 		{
 			push	eax
@@ -54,6 +60,7 @@ sgl_uint32  SglTimeNow(void)
 			pop		edx
 			pop		eax
 		}
+#endif
 
 	return Time;
 }

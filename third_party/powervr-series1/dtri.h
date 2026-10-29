@@ -395,7 +395,9 @@ extern void sgltri_quads ( PSGLCONTEXT  pContext,
 #define PROCESSD3DTRANSFANCOREPRIMITIVE	1	/* 1 for C code version */
 
 
-#if WIN32 || DOS32
+/* PVR_NO_ASM: the wrapper is built with GCC, which cannot assemble the
+   MASM files, so it keeps the C versions of these routines. */
+#if (WIN32 || DOS32) && !defined(PVR_NO_ASM)
 
 	/* dtri.c stuff
 	 * Use assembler version of some routines for PCX1, PCX2 & ISPTSP.

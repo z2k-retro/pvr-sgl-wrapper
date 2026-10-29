@@ -3291,6 +3291,12 @@ static int ProcessSpritesCore( PPIR pPerSpritefn, sgl_bool NewObject)
 
 /**********************************************************************/
 
+/* Forward declarations (the original relied on MSVC accepting an implicit
+   declaration followed by a static definition). */
+static int PackSpriteExtra(PISPRITE pSprite, PIMATERIAL pMat, sgl_uint32 nSprites, sgl_uint32 TSPInc, sgl_uint32 *pTSP);
+static int PackISPSpriteExtra (PISPRITE rpSprite, PIMATERIAL rpMat, int nSprites,
+					sgl_uint32 TSPAddr, sgl_uint32 TSPIncrement);
+
 static void ProcessSprites( PPIR pPerSpritefn, PBPR pPerBuffn, sgl_uint32 TSPWords)
 {
 	/* function to process the context data for the sprites */

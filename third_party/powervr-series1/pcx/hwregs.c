@@ -758,8 +758,12 @@ char *GetSGLHWIni ()
  */
 
 static sgl_uint32	uBilinearReg		= 0x0;
-static sgl_bool		bFilteringOverRide	= FALSE;
-static sgl_bool		bBilinearEnabled	= FALSE;
+/* Renamed from bFilteringOverRide/bBilinearEnabled: these are private to
+   this file (the original declared them static after hwinterf.h declared
+   globals of the same name, which MSVC accepted). The globals live in
+   sgllite.c. */
+static sgl_bool		bHwFilteringOverRide	= FALSE;
+static sgl_bool		bHwBilinearEnabled	= FALSE;
 
 /******************************************************************************
  * Function Name: HWSetupBunchOfISPRegs
@@ -947,8 +951,8 @@ void CALL_CONV HWSetupBunchOfISPRegs()
 	/* Driver Default state - Bilinear filtering off.
 	 */
 	uBilinearReg		= 3;
-	bFilteringOverRide	= FALSE;
-	bBilinearEnabled	= FALSE;
+	bHwFilteringOverRide	= FALSE;
+	bHwBilinearEnabled	= FALSE;
 
 	if(!uBilinearCtl)
 	{
@@ -958,14 +962,14 @@ void CALL_CONV HWSetupBunchOfISPRegs()
 			/* Driver Default state - Bilinear filtering off.
 			 */
 			uBilinearReg		= 3;
-			bFilteringOverRide	= FALSE;
-			bBilinearEnabled	= FALSE;
+			bHwFilteringOverRide	= FALSE;
+			bHwBilinearEnabled	= FALSE;
 		}
 		else if(uBilinearState == 0)
 		{
 			uBilinearReg		= 3;
-			bFilteringOverRide	= TRUE;
-			bBilinearEnabled	= FALSE;
+			bHwFilteringOverRide	= TRUE;
+			bHwBilinearEnabled	= FALSE;
 		}
 		else
 		{
@@ -974,8 +978,8 @@ void CALL_CONV HWSetupBunchOfISPRegs()
 			/* bilnear mode if bilinear on - i.e. normal or adaptive */
 			uBilinearReg = HWRdValFileUInt("BilinearFilteringMode",2);
 
-			bFilteringOverRide	= TRUE;
-			bBilinearEnabled = TRUE;
+			bHwFilteringOverRide	= TRUE;
+			bHwBilinearEnabled = TRUE;
 			
 			if(uBilinearReg > 0x3 || !uBilinearReg)
 			{
@@ -1206,12 +1210,12 @@ void CALL_CONV PVROSSetupISPRegs()
 
 sgl_bool PVROSFilteringOveride()
 {
-	return bFilteringOverRide;
+	return bHwFilteringOverRide;
 }
 
 sgl_bool PVROSBilinearEnabled()
 {
-	return bBilinearEnabled;
+	return bHwBilinearEnabled;
 }
 
 void HWSetBilinearRegister(sgl_texture_filter_type eFilterType)
@@ -1224,7 +1228,7 @@ void HWSetBilinearRegister(sgl_texture_filter_type eFilterType)
 	 *			10	reserved (set to 0)
 	 *			11	linear mip-mapping.
 	 */
-	if (!bFilteringOverRide)
+	if (!bHwFilteringOverRide)
 	{
 		/* Set Bilinear register. Address 0064H
 		 * Need to read the uBilinearReg value to determine if SDRAM caching

@@ -174,7 +174,7 @@ PVROSERR DDrawModeEORCallback (void *pData, void *pContext)
  * Description  : 
  *****************************************************************************/
 
-int CALL_CONV sgl_use_ddraw_mode (HWND hWnd, PROC_2D_CALLBACK Proc2dCallback)
+int CALL_CONV sgl_use_ddraw_mode (void *hWnd, PROC_2D_CALLBACK Proc2dCallback)
 {
 	
 	PVROSSetDDrawWindowHandle((void *)hWnd);
