@@ -60,6 +60,10 @@ for f in $SGL_STD $SGL_COMMON $SGL_LITE $PCX $WIN32 $PVROS; do
 done
 EXTRA=""
 for f in $OURS; do
+  # The renderer uses SSE2 floating point, as the 64-bit 86Box build does.
+  # Left on the x87 (GCC's 32-bit default), its extra internal precision
+  # tips the odd edge pixel the other way from 86Box and the card.
+  case "$f" in pcx2/*) EXTRA="-msse2 -mfpmath=sse" ;; *) EXTRA="" ;; esac
   compile "$ROOT/src/$f.c" "src_$(echo "$f" | tr / _)"
 done
 # JWasm (MASM-compatible) is fetched and built on first use.

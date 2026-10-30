@@ -48,7 +48,9 @@ bash tests/replay-all.sh FOLDER [results.txt]   # every session archive (.zip/.t
 
 `replay-all.sh` expects `replay.exe` and `sgl.dll` next to it. Cases that change `PREC_BASE` are listed but not counted.
 
-On the GLQuake session of 2026-10-28, all 15 counted cases match the card exactly. The one uncounted case is `prec-base-0x100`. That case scrambles the card's output in a way neither the renderer nor any driver models, and no driver sets `PREC_BASE`. The cases cover the three frames as captured, 15/16/24/32-bit output with and without dither, each filter mode, fog strengths and colours, and `CAMERA`.
+Run over the 105 pcx2session results from the 86Box work (2026-10-18 to 10-28), the wrapper gives the same pixel count as today's 86Box renderer in every case. The differences that remain are the renderer's: single edge pixels in a few game frames, and the hand-built texture and filter probe frames (`frame_9xxxxx`). Cases that change `PREC_BASE` are not counted.
+
+The renderer is compiled with SSE2 floating point, as the 64-bit 86Box build is. Left on GCC's 32-bit x87 default, its extra internal precision put four edge pixels on the other side of a plane from 86Box and the card.
 
 This checks everything from the chip's inputs to the screen. It cannot check how SGL builds a scene, because the dumps come from the real driver in 86Box.
 
