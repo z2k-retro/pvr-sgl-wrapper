@@ -37,6 +37,18 @@ The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightne
 
 `ddraw.exe` from the tests is a quick check that doesn't need a game. It should show a turning checkerboard for a few seconds, then exit and write `ddraw.bmp`.
 
+## Checked against a real m3D
+
+`tests/replay.c` takes a result folder from the PCX2 tools' `pcx2session.sh` (`report.txt`, the 86Box frame dumps it names, and the card's own output for each case). It renders every case through the wrapper's render path: the VxD stand-in's `SCHEDULE_RENDER` (registers, ISP buffer as the TLB maps it, fog table from ROM) and its write-out to the surface. Then it counts the pixels that differ from what the card drew.
+
+```sh
+wine build/replay.exe path/to/pcx2session-YYYYMMDD-HHMMSS
+```
+
+On the GLQuake session of 2026-10-28, all 16 cases match the card exactly except `prec-base-0x100`. That case scrambles the card's output in a way neither the renderer nor any driver models, and no driver sets `PREC_BASE`. The cases cover the three frames as captured, 15/16/24/32-bit output with and without dither, each filter mode, fog strengths and colours, and `CAMERA`.
+
+This checks everything from the chip's inputs to the screen. It cannot check how SGL builds a scene, because the dumps come from the real driver in 86Box.
+
 ## Building
 
 The build needs the i686 MinGW cross compiler (`gcc-mingw-w64-i686` on Debian/Ubuntu), plus `git` and `make` for JWasm. The build fetches and builds JWasm the first time; it assembles the one assembler file the source has no C version of.
@@ -68,7 +80,7 @@ game ─► SGL (Imagination source) ─► PVROS (Imagination source) ─► vs
 | `src/fpu.c` | `SetupFPU`/`RestoreFPU` from `fast.asm` (x87 single precision, truncating rounding). |
 | `src/sgl.def`, `src/sgl_exports_4115.txt` | The export table, copied from the shipped 4.1.1.5 `SGL.DLL` by `tools/gen_def.py`. |
 | `tools/build.sh` | Cross-compiles one file at a time, assembles `texapiml.asm` with JWasm, and links `sgl.dll`. |
-| `tests/` | `smoke.c` (exports and start-up), `tri.c` (address mode to a BMP) and `ddraw.c` (full-screen DirectDraw, texture, screen capture). |
+| `tests/` | `smoke.c` (exports and start-up), `tri.c` (address mode to a BMP), `ddraw.c` (full-screen DirectDraw, texture, screen capture; 16 or 24/32-bit) and `replay.c` (86Box dumps through the wrapper, compared with a real m3D). |
 
 ### Per frame
 

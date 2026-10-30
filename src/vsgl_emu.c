@@ -542,3 +542,33 @@ BOOL WINAPI vsgl_crt_init(HINSTANCE h, DWORD reason, LPVOID reserved)
 	(void) h; (void) reason; (void) reserved;
 	return TRUE;
 }
+
+/* ---------------------------------------------------------------------
+ * Test entry point: render one 86Box frame dump (PCXDUMP1) through the
+ * same SCHEDULE_RENDER path a game uses, into fb (filled by the caller).
+ * regs is the dump's 0x400-dword register file; isp/isp_bytes its ISP
+ * block; tex its 4 MB of texture memory. tests/replay.c uses this to
+ * compare the wrapper with frames drawn by a real m3D.
+ * ------------------------------------------------------------------- */
+__declspec(dllexport) int pvr_test_render(const uint32_t *regs, const uint32_t *isp,
+                                          uint32_t isp_bytes, uint32_t page_bytes,
+                                          const uint32_t *tex, void *fb)
+{
+	static LDEVICE ld;
+	static BUFFER_LIST bl;
+	int i;
+
+	if (!board_init())
+		return -1;
+	memcpy(board_tex, tex, TEXMEM_BYTES);
+	memset(&ld, 0, sizeof ld);
+	memset(&bl, 0, sizeof bl);
+	bl.PCXBuffer.PageSize = page_bytes == 16384 ? 2 : page_bytes == 8192 ? 1 : 0;
+	bl.PCXBuffer.LinearAddress = (unsigned long) isp;
+	bl.PCXBuffer.SlotsUsed = isp_bytes / page_bytes;
+	for (i = 0; i < 32; i++)
+		bl.Registers[i] = regs[i];
+	bl.Registers[PCX_SOFADDR] = (uint32_t) fb;
+	ld.RendersPending = 1;
+	return schedule_render(&ld, &bl) ? 0 : -1;
+}
