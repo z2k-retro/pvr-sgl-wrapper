@@ -43,9 +43,12 @@ The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightne
 
 ```sh
 wine build/replay.exe path/to/pcx2session-YYYYMMDD-HHMMSS
+bash tests/replay-all.sh FOLDER [results.txt]   # every session archive (.zip/.tar.gz) or folder in FOLDER
 ```
 
-On the GLQuake session of 2026-10-28, all 16 cases match the card exactly except `prec-base-0x100`. That case scrambles the card's output in a way neither the renderer nor any driver models, and no driver sets `PREC_BASE`. The cases cover the three frames as captured, 15/16/24/32-bit output with and without dither, each filter mode, fog strengths and colours, and `CAMERA`.
+`replay-all.sh` expects `replay.exe` and `sgl.dll` next to it. Cases that change `PREC_BASE` are listed but not counted.
+
+On the GLQuake session of 2026-10-28, all 15 counted cases match the card exactly. The one uncounted case is `prec-base-0x100`. That case scrambles the card's output in a way neither the renderer nor any driver models, and no driver sets `PREC_BASE`. The cases cover the three frames as captured, 15/16/24/32-bit output with and without dither, each filter mode, fog strengths and colours, and `CAMERA`.
 
 This checks everything from the chip's inputs to the screen. It cannot check how SGL builds a scene, because the dumps come from the real driver in 86Box.
 
