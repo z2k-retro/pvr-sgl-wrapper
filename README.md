@@ -31,6 +31,8 @@ The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightne
 
 **Unreal (1998) runs.** On Windows 11 with dgVoodoo2's `ddraw.dll`, it plays at 1024×768 at full speed on a Ryzen 7735HS mini-PC (16 threads, integrated graphics, which only display the frames). That run covered the intro, Vortex Rikers and Nyleve's Falls with saving.
 
+**Games that read `sglhw.ini` themselves.** The PowerVR driver installed `sglhw.ini` in the Windows folder, and some games read it directly. POD (`podpvrx.exe`) reads the tile size from it (`[Default] SW_XRegionSize`, `SW_YRegionSize`) and divides by it. Without the file it crashed with a divide by zero before the first race. The wrapper now answers those reads. It looks first in an `sglhw.ini` next to `sgl.dll`, then in the Windows folder's, and otherwise uses the driver's defaults (32 × 32) (`src/compat.c`).
+
 **Screenshots.** Press F12 or Scroll Lock in a game (or set `PVR_SHOT_KEY` to another virtual-key code) to save the frame just drawn as `pvrshot_NNN.bmp` next to `sgl.dll`. The capture is exactly what the emulated chip wrote, after packing and dithering, so it is the frame to compare with 86Box or a real card. Windows capture tools may miss a full-screen DirectDraw game. Setting `PVR_SHOT_FRAME=n` saves frame *n* without a key press.
 
 **Log.** `pvrsgl.log` next to `sgl.dll` records the driver's messages, and for any crash the module, offset, registers and return addresses. `tools/addr2sym.py` (or `i686-w64-mingw32-addr2line -e build/sgl.dll`) turns `sgl.dll` offsets into function and line. Set `PVR_LOG=0` to turn the log off.

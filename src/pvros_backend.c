@@ -110,12 +110,15 @@ static void teardown_device(void)
 BOOL WINAPI PVROS_DllMain(HINSTANCE h, DWORD reason, LPVOID reserved);
 BOOL WINAPI SGL_DllMain(HINSTANCE h, DWORD reason, LPVOID reserved);
 
+void compat_init(void);
+
 BOOL WINAPI DllMain(HINSTANCE h, DWORD reason, LPVOID reserved)
 {
 	switch (reason) {
 	case DLL_PROCESS_ATTACH:
 		DisableThreadLibraryCalls(h);
 		diag_init(h);
+		compat_init();
 		if (!PVROS_DllMain(h, reason, reserved)) {
 			pvr_log("pvr-sgl-wrapper: PVROS start-up failed\n");
 			return FALSE;

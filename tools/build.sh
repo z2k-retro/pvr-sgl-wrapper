@@ -35,7 +35,7 @@ PVROS="win32/system win32/display win32/brdcfg win32/brdsetup win32/texif
  texapi tmalloc profile callback"
 # Assembler files with no C equivalent in the source, assembled with JWasm.
 ASM="win32/texapiml"
-OURS="pvros_backend fpu vsgl_emu diag pcx2/vid_powervr_pcx_render"
+OURS="pvros_backend fpu vsgl_emu diag compat pcx2/vid_powervr_pcx_render"
 
 # Defines from pcmake.mak (release build). The original compiler was Intel's
 # icl with -Zp4 (4-byte structure packing) and x87 floating point.
