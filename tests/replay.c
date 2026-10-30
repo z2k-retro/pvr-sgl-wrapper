@@ -94,7 +94,10 @@ int main(int argc, char **argv)
 			long dlen, clen;
 			unsigned char *d = load(dump, &dlen), *card, *fb;
 			uint32_t regs[0x400], page, pages, objb, pm;
-			int bpp, H, x, y, diff = 0, i;
+			int bpp, H, x, y, diff = 0, i, we_blank = 0, card_blank = 0, beyond = 0, nshow;
+			int minx, miny, maxx, maxy;
+			long fbsize;
+			char show[3][64];
 
 			snprintf(path, sizeof path, "%s/%s-card.raw", dir, name);
 			card = load(path, &clen);
@@ -116,14 +119,54 @@ int main(int argc, char **argv)
 			pm = regs[0x10];
 			bpp = ((pm & 3) == 0) ? 4 : ((pm & 3) == 1) ? 3 : 2;
 			H = (int) (clen / stride);
-			fb = malloc(clen);
-			memset(fb, 0xa5, clen); /* as pcx2play fills its frame buffer */
+			/* Room for a full 1024x1024 frame: sessions captured before the
+			   renderer handled 800x600 saved a smaller card image than the
+			   frame the wrapper now draws. */
+			fbsize = (long) stride * 1024 > clen ? (long) stride * 1024 : clen;
+			if (fbsize < 1024L * 1024 * 4)
+				fbsize = 1024L * 1024 * 4;
+			fb = malloc(fbsize);
+			memset(fb, 0xa5, fbsize); /* as pcx2play fills its frame buffer */
 			render(regs, (const uint32_t *) (d + 64 + 4096), page * pages, page,
 			       (const uint32_t *) (d + 64 + 4096 + page * pages + objb), fb);
+			{
+				long k;
+				for (k = clen; k < fbsize; k++)
+					if (fb[k] != 0xa5) {
+						beyond = 1;
+						break;
+					}
+			}
+			nshow = 0;
+			minx = miny = 1 << 30;
+			maxx = maxy = -1;
 			for (y = 0; y < H; y++)
-				for (x = 0; x < (int) (stride / bpp); x++)
-					if (memcmp(fb + y * stride + x * bpp, card + y * stride + x * bpp, bpp))
-						diff++;
+				for (x = 0; x < (int) (stride / bpp); x++) {
+					unsigned char *a = fb + y * stride + x * bpp, *c = card + y * stride + x * bpp;
+					int k, a_fill = 1, c_fill = 1;
+					if (!memcmp(a, c, bpp))
+						continue;
+					diff++;
+					for (k = 0; k < bpp; k++) {
+						a_fill &= a[k] == 0xa5;
+						c_fill &= c[k] == 0xa5;
+					}
+					if (a_fill)
+						we_blank++;
+					else if (c_fill)
+						card_blank++;
+					if (x < minx) minx = x;
+					if (x > maxx) maxx = x;
+					if (y < miny) miny = y;
+					if (y > maxy) maxy = y;
+					if (nshow < 3) {
+						unsigned va = 0, vc = 0;
+						memcpy(&va, a, bpp);
+						memcpy(&vc, c, bpp);
+						snprintf(show[nshow++], sizeof show[0], "(%d,%d) card %0*x wrapper %0*x",
+						         x, y, bpp * 2, vc, bpp * 2, va);
+					}
+				}
 			{
 				/* PREC_BASE changed by the session: the card scrambles its
 				   output in a way nothing models and no driver uses. */
@@ -134,6 +177,18 @@ int main(int argc, char **argv)
 				printf("%-22s %s  %ux%d  PACKMODE %02x: %d pixels differ from the card%s\n", name,
 				       strrchr(dump, '/') ? strrchr(dump, '/') + 1 : dump, stride / bpp, H, pm, diff,
 				       prec ? " (PREC_BASE changed: not modelled, not counted)" : "");
+				if (diff && !prec) {
+					printf("    area x %d-%d, y %d-%d", minx, maxx, miny, maxy);
+					if (we_blank)
+						printf("; %d where only the card drew", we_blank);
+					if (card_blank)
+						printf("; %d where only the wrapper drew", card_blank);
+					printf("\n");
+					for (i = 0; i < nshow; i++)
+						printf("    %s\n", show[i]);
+				}
+				if (beyond)
+					printf("    the wrapper's frame is larger than the card image (session from before the 800x600 fix?)\n");
 				if (prec)
 					unmodelled++;
 				else {

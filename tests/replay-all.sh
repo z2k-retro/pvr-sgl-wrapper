@@ -5,6 +5,10 @@
 #
 # Usage: bash replay-all.sh FOLDER [results.txt]
 #
+# Results go to FOLDER/replay-results.txt unless another file is named. A
+# folder with the same name as an archive beside it (an unpacked copy) is
+# skipped, so each session is counted once.
+#
 # replay.exe and sgl.dll must be next to this script, and Wine installed.
 # Each archive is unpacked into a temporary folder that is removed again.
 #
@@ -12,8 +16,8 @@
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
 SRC=${1:?usage: bash replay-all.sh FOLDER [results.txt]}
-OUT=${2:-$PWD/replay-results.txt}
 SRC=$(cd "$SRC" && pwd)
+OUT=${2:-$SRC/replay-results.txt}
 command -v wine >/dev/null || { echo "Wine is not installed"; exit 1; }
 [ -f "$HERE/replay.exe" ] && [ -f "$HERE/sgl.dll" ] || { echo "replay.exe and sgl.dll must be next to this script"; exit 1; }
 
@@ -38,6 +42,10 @@ shopt -s nullglob
 for a in "$SRC"/*.zip "$SRC"/*.tar.gz "$SRC"/*.tgz "$SRC"/*/; do
     label=$(basename "$a")
     if [ -d "$a" ]; then
+        label=$(basename "$a")
+        if [ -e "$SRC/$label.zip" ] || [ -e "$SRC/$label.tar.gz" ] || [ -e "$SRC/$label.tgz" ]; then
+            continue    # unpacked copy of an archive already counted
+        fi
         rep=$(find "$a" -name report.txt | head -1)
     else
         work="$TMP/$label"; rm -rf "$work"; mkdir -p "$work"
