@@ -17,7 +17,17 @@ The whole path works under Wine:
 - **Address mode** (`tests/tri.c`): the application gives SGL a memory buffer. The test draws a Gouraud-shaded triangle with a translucent quad in front.
 - **DirectDraw mode** (`tests/ddraw.c`): this is the path games use. The test opens a window, calls `sgl_use_ddraw_mode`, and runs a full-screen 640×480×16 double-buffered device with page flips. It uploads a mip-mapped texture and draws a spinning textured, bilinear-filtered quad over a Gouraud one.
 
-Unreal runs (see *Trying it on Windows*). The Quake MiniGLs are next.
+Games tested on Windows 11 (release 0.1):
+
+| Game | Notes |
+|---|---|
+| Unreal (1998) | Plays at 1024×768. Use with dgVoodoo2's `ddraw.dll`. |
+| GLQuake / Quake II | Through Matrox's PowerVR MiniGL (`opengl32.dll`) on top of this `sgl.dll`. |
+| POD 2.0 (`podpvrx.exe`) | Needs the `sglhw.ini` handling below (built in). |
+| MDK (`MDKPVR.EXE`) | MDK's own `MDK.CFG` must point at the game's data folder, and its CD check applies. |
+| Fogtest (PowerVR demo) | Works. |
+
+Starting some games takes a few seconds longer than it should. They run normally once started.
 
 Rendering uses every CPU thread. Set `PVR_RENDER_THREADS` to override the count.
 
