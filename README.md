@@ -22,7 +22,8 @@ Games tested on Windows 11 (release 0.1):
 | Game | Notes |
 |---|---|
 | Unreal (1998) | Plays at 1024×768. Use with dgVoodoo2's `ddraw.dll`. |
-| GLQuake / Quake II | Through Matrox's PowerVR MiniGL (`opengl32.dll`) on top of this `sgl.dll`. |
+| GLQuake | Through Matrox's PowerVR MiniGL (`opengl32.dll`) on top of this `sgl.dll`. The few seconds before the picture appears are the monitor changing mode: the card is already drawing at 60 frames a second. |
+| Quake II | Through Matrox's MiniGL (`pvrgl.dll`). Set the resolution on the command line (`+set gl_mode 6` for 1024×768, the PCX2's largest) instead of the in-game menu. Changing mode in game makes the MiniGL read a texture it has already freed, which Windows 11 no longer tolerates. |
 | POD 2.0 (`podpvrx.exe`) | Needs the `sglhw.ini` handling below (built in). |
 | MDK (`MDKPVR.EXE`) | MDK's own `MDK.CFG` must point at the game's data folder, and its CD check applies. |
 | Fogtest (PowerVR demo) | Works. |
