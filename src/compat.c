@@ -29,9 +29,21 @@ static const struct {
 	const char *key;
 	UINT value;
 } defaults[] = {
-	/* win32/hwdevice.c X_REGION_SIZE / Y_REGION_SIZE */
-	{ "SW_XRegionSize", 32 },
-	{ "SW_YRegionSize", 32 },
+	/* The driver's own defaults (Imagination source) for the sglhw.ini
+	   keys whose default is not 0. A game that reads one itself with a
+	   default of 0 gets the value the driver would have used. */
+	{ "SW_XRegionSize", 32 },          /* win32/hwdevice.c X_REGION_SIZE */
+	{ "SW_YRegionSize", 32 },          /* Y_REGION_SIZE */
+	{ "SW_MergeHeight", 8 },           /* MERGE_HEIGHT */
+	{ "SW_MinYSize", 2 },              /* MIN_Y_SIZE */
+	{ "ISPParamSize", 512 },           /* win32/brdsetup.c, KB */
+	{ "ObjectParamSize", 512 },
+	{ "BilinearFilteringMode", 2 },
+	{ "BilinearState", 0xff },
+	{ "FullSort", 1 },
+	{ "StrictLocks", 1 },
+	{ "FramesToAverage", 100 },
+	{ "RenderTimeout", 5 },
 };
 
 static int is_sglhw(LPCSTR file)
