@@ -261,6 +261,12 @@ static BOOL schedule_render(HLDEVICE ld, BUFFER_LIST *bl)
 	pcxr_result_t r;
 	uint32_t page_bytes, i;
 	const uint32_t *regs = bl->Registers;
+	static unsigned frames;
+
+	/* Milestones for timing a game's start (the log is time-stamped). */
+	frames++;
+	if (frames == 1 || frames == 10 || frames == 100 || frames == 1000)
+		vlog("vsgl: frame %u rendered\n", frames);
 
 	/* 1. Copy any buffer that does not already sit where the chip reads it.
 	      In practice only the TSP parameters move, into texture memory. */

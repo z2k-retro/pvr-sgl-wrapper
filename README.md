@@ -45,7 +45,7 @@ The PCX2 Gouraud-shades in intensity only: one colour per polygon, with brightne
 
 **Screenshots.** Press F12 or Scroll Lock in a game (or set `PVR_SHOT_KEY` to another virtual-key code) to save the frame just drawn as `pvrshot_NNN.bmp` next to `sgl.dll`. The capture is exactly what the emulated chip wrote, after packing and dithering, so it is the frame to compare with 86Box or a real card. Windows capture tools may miss a full-screen DirectDraw game. Setting `PVR_SHOT_FRAME=n` saves frame *n* without a key press.
 
-**Log.** `pvrsgl.log` next to `sgl.dll` records the driver's messages, and for any crash the module, offset, registers and return addresses. `tools/addr2sym.py` (or `i686-w64-mingw32-addr2line -e build/sgl.dll`) turns `sgl.dll` offsets into function and line. Set `PVR_LOG=0` to turn the log off.
+**Log.** `pvrsgl.log` next to `sgl.dll` records the driver's messages, and for any crash the module, offset, registers and return addresses. `tools/addr2sym.py` (or `i686-w64-mingw32-addr2line -e build/sgl.dll`) turns `sgl.dll` offsets into function and line. Set `PVR_LOG=0` to turn the log off. Each line carries the time since `sgl.dll` loaded. For the first 20 seconds the log also samples the game's main thread, then lists where it spent its time, second by second and overall, to find what makes a game slow to start. Set `PVR_PROFILE` to change the number of seconds; 0 turns it off.
 
 `ddraw.exe` from the tests is a quick check that doesn't need a game. It should show a turning checkerboard for a few seconds, then exit and write `ddraw.bmp`.
 
